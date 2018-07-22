@@ -10,6 +10,7 @@ import {
 import TiledTileMap, { TiledEntityFactories } from './TiledTileMap';
 import TileMapCollider from './TileMapCollider';
 import Player from './Player';
+import SpawningDyingRenderer from './SpawningDyingRenderer';
 
 export default class Game extends Component<null> {
   init() {
@@ -21,6 +22,7 @@ export default class Game extends Component<null> {
           name: 'player',
           components: [
             new Player(),
+            new SpawningDyingRenderer(),
             new KinematicBody(),
             new BoxCollider({
               width: 8,

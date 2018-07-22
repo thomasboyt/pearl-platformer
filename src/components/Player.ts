@@ -6,20 +6,36 @@ import {
   AnimationManager,
   CollisionInformation,
   Physical,
+  BoxCollider,
+  Vector2,
 } from 'pearl';
 import TileMapCollider, { TileCollisionType } from './TileMapCollider';
 import TiledTileMap from './TiledTileMap';
+import SpawningDyingRenderer from './SpawningDyingRenderer';
 
 const gravityAccel = 0.002;
 const jumpSpeed = 1.5;
+
+type PlayerState = 'spawning' | 'alive' | 'dead';
 
 export default class Player extends Component<void> {
   playerSpeed = 0.03;
   yVec = 0;
   grounded = false;
   onLadder = false;
+  state: PlayerState = 'spawning';
+  spawnPosition!: Vector2;
+
+  init() {
+    this.spawnPosition = this.getComponent(Physical).center;
+    this.respawn();
+  }
 
   update(dt: number) {
+    if (this.state !== 'alive') {
+      return;
+    }
+
     const phys = this.getComponent(Physical);
 
     let xVec = 0;
@@ -105,15 +121,22 @@ export default class Player extends Component<void> {
 
     const tileMap = this.gameObject.parent!.getComponent(TiledTileMap);
 
+    const tiles = tileMap.tilesAtLocalPos(phys.localCenter);
+
     if (this.pearl.inputter.isKeyDown(Keys.upArrow)) {
-      const tiles = tileMap.tilesAtLocalPos(phys.localCenter);
       if (tiles.indexOf('chain') !== -1 || tiles.indexOf('ladder') !== -1) {
         this.onLadder = true;
       }
     }
+
+    if (tiles.indexOf('spikes') !== -1) {
+      this.die();
+    }
+
+    this.checkFellOOB();
   }
 
-  updateLadder(dt: number) {
+  private updateLadder(dt: number) {
     const tileMap = this.gameObject.parent!.getComponent(TiledTileMap);
     const phys = this.getComponent(Physical);
     const tiles = tileMap.tilesAtLocalPos(phys.localCenter);
@@ -132,7 +155,39 @@ export default class Player extends Component<void> {
     }
   }
 
-  jump() {
+  private checkFellOOB() {
+    const topEdge =
+      this.getComponent(Physical).center.y -
+      this.getComponent(BoxCollider).height / 2;
+
+    if (topEdge > this.pearl.renderer.getViewSize().y) {
+      this.respawn();
+    }
+  }
+
+  private respawn() {
+    this.getComponent(Physical).center = this.spawnPosition;
+    this.getComponent(SpriteRenderer).scaleX = 1;
+    this.state = 'spawning';
+    this.getComponent(SpawningDyingRenderer).spawn(() => {
+      this.state = 'alive';
+    });
+  }
+
+  private die() {
+    this.state = 'dead';
+    this.runCoroutine(function*(this: Player) {
+      for (let i = 0; i < 3; i += 1) {
+        this.getComponent(SpriteRenderer).isVisible = true;
+        yield this.pearl.async.waitMs(200);
+        this.getComponent(SpriteRenderer).isVisible = false;
+        yield this.pearl.async.waitMs(200);
+      }
+      this.respawn();
+    });
+  }
+
+  private jump() {
     if (this.grounded) {
       this.yVec = -jumpSpeed;
     }
