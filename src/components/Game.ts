@@ -11,6 +11,7 @@ import TiledTileMap, { TiledEntityFactories } from './TiledTileMap';
 import TileMapCollider from './TileMapCollider';
 import Player from './Player';
 import SpawningDyingRenderer from './SpawningDyingRenderer';
+import CameraMover from './CameraMover';
 
 export default class Game extends Component<null> {
   init() {
@@ -24,6 +25,7 @@ export default class Game extends Component<null> {
             new Player(),
             new SpawningDyingRenderer(),
             new KinematicBody(),
+            new CameraMover(),
             new BoxCollider({
               width: 8,
               height: 8,
@@ -47,6 +49,29 @@ export default class Game extends Component<null> {
               },
             }),
           ],
+        });
+      },
+      roomTrigger: (objectInfo) => {
+        const entity = new Entity({
+          name: 'roomTrigger',
+          tags: ['roomTrigger'],
+          components: [
+            new BoxCollider({
+              width: objectInfo.width,
+              height: objectInfo.height,
+            }),
+          ],
+        });
+
+        entity.getComponent(BoxCollider).isTrigger = true;
+
+        return entity;
+      },
+      spawn: () => {
+        return new Entity({
+          name: 'spawn',
+          tags: ['spawn'],
+          components: [],
         });
       },
     };

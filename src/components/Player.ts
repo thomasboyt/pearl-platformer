@@ -8,10 +8,12 @@ import {
   Physical,
   BoxCollider,
   Vector2,
+  GameObject,
 } from 'pearl';
 import TileMapCollider, { TileCollisionType } from './TileMapCollider';
 import TiledTileMap from './TiledTileMap';
 import SpawningDyingRenderer from './SpawningDyingRenderer';
+import CameraMover from './CameraMover';
 
 const gravityAccel = 0.002;
 const jumpSpeed = 1.5;
@@ -26,11 +28,15 @@ export default class Player extends Component<void> {
   state: PlayerState = 'spawning';
   spawnPosition!: Vector2;
 
+  roomBoundaryX = 0;
+
   init() {
     this.spawnPosition = this.getComponent(Physical).center;
     this.respawn();
   }
 
+  // TODO: Obviously refactor this and clear up flow once I am awake enough to
+  // reason about it
   update(dt: number) {
     if (this.state !== 'alive') {
       return;
@@ -87,10 +93,14 @@ export default class Player extends Component<void> {
             this.yVec = 0;
             this.grounded = true;
           } else if (this.yVec < 0 && y < 0) {
-            this.yVec = 0;
+            // this.yVec = 0;
           }
         }
       }
+    }
+
+    if (phys.center.x < this.roomBoundaryX) {
+      phys.center = { x: this.roomBoundaryX, y: phys.center.y };
     }
 
     if (this.yVec !== 0) {
@@ -166,6 +176,7 @@ export default class Player extends Component<void> {
   }
 
   private respawn() {
+    this.yVec = 0; // quick fix for deaths from tunnelin thru floor
     this.getComponent(Physical).center = this.spawnPosition;
     this.getComponent(SpriteRenderer).scaleX = 1;
     this.state = 'spawning';
@@ -190,6 +201,42 @@ export default class Player extends Component<void> {
   private jump() {
     if (this.grounded) {
       this.yVec = -jumpSpeed;
+    }
+  }
+
+  private nextRoom(trigger: GameObject) {
+    const viewCenter = this.pearl.renderer.getViewCenter();
+    const viewSize = this.pearl.renderer.getViewSize();
+
+    this.getComponent(CameraMover).moveCamera(2000, {
+      x: viewCenter.x + viewSize.x,
+      y: viewCenter.y,
+    });
+
+    const spawns = this.pearl.entities.all('spawn');
+    let closestSpawnPosition: Vector2 | undefined = undefined;
+
+    for (let spawn of spawns) {
+      const pos = spawn.getComponent(Physical).center;
+      if (!closestSpawnPosition || Math.abs(pos.x - closestSpawnPosition.x)) {
+        closestSpawnPosition = pos;
+      }
+    }
+
+    if (!closestSpawnPosition) {
+      throw new Error('could not find a spawn');
+    }
+
+    this.roomBoundaryX = trigger.getComponent(Physical).center.x;
+
+    this.spawnPosition = closestSpawnPosition;
+  }
+
+  onCollision(collision: CollisionInformation) {
+    if (collision.gameObject.hasTag('roomTrigger')) {
+      this.nextRoom(collision.gameObject);
+
+      this.pearl.entities.destroy(collision.gameObject);
     }
   }
 }
