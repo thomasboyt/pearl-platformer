@@ -94,6 +94,7 @@ export default class Player extends Component<void> {
             if (this.yVec > 0 && y > 0) {
               this.yVec = 0;
               this.grounded = true;
+              this.onLadder = false;
             } else if (this.yVec < 0 && y < 0) {
               // bumping into ceiling... not sure whether to keep this yet
               // this.yVec = 0;
