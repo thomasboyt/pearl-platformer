@@ -83,10 +83,7 @@ export default class Player extends Component<void> {
             this.yVec < 0
           ) {
             // XXX: there's some glitchiness here that I can't figure out
-            phys.translate({
-              x: x,
-              y: y + this.yVec,
-            });
+            phys.translate({ x, y });
           } else {
             if (this.yVec > 0 && y > 0) {
               this.yVec = 0;
