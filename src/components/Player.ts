@@ -69,31 +69,32 @@ export default class Player extends Component<void> {
     });
 
     if (collisions.length) {
-      const collision = collisions[0];
+      for (let collision of collisions) {
+        if (collision.gameObject.name === 'level') {
+          const { x, y } = collision.response.overlapVector;
 
-      if (collision.gameObject.name === 'level') {
-        const { x, y } = collision.response.overlapVector;
+          const tileMapCollider = this.gameObject.parent!.getComponent(
+            TileMapCollider
+          );
 
-        const tileMapCollider = this.gameObject.parent!.getComponent(
-          TileMapCollider
-        );
-
-        // XXX: This is kind of a shitty place for this logic.
-        if (
-          tileMapCollider.lastCollision!.type === TileCollisionType.OneWay &&
-          this.yVec < 0
-        ) {
-          // XXX: there's some glitchiness here that I can't figure out
-          phys.translate({
-            x: x,
-            y: y + this.yVec,
-          });
-        } else {
-          if (this.yVec > 0 && y > 0) {
-            this.yVec = 0;
-            this.grounded = true;
-          } else if (this.yVec < 0 && y < 0) {
-            // this.yVec = 0;
+          // XXX: This is kind of a shitty place for this logic.
+          if (
+            tileMapCollider.lastCollision!.type === TileCollisionType.OneWay &&
+            this.yVec < 0
+          ) {
+            // XXX: there's some glitchiness here that I can't figure out
+            phys.translate({
+              x: x,
+              y: y + this.yVec,
+            });
+          } else {
+            if (this.yVec > 0 && y > 0) {
+              this.yVec = 0;
+              this.grounded = true;
+            } else if (this.yVec < 0 && y < 0) {
+              // bumping into ceiling... not sure whether to keep this yet
+              // this.yVec = 0;
+            }
           }
         }
       }
