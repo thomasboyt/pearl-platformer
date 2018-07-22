@@ -44,11 +44,17 @@ export default class Player extends Component<void> {
 
     const phys = this.getComponent(Physical);
 
+    // TODO: would be nice if this instead had a "last-pressed key wins" system
+    // e.g. was pressing left, then pressed right, go right
+    //      was pressing right, then pressed right, go right
+    //      was pressing left, then  pressed left, go left
+    //      was pressing right, then pressed left, go right
     let xVec = 0;
     if (this.pearl.inputter.isKeyDown(Keys.rightArrow)) {
-      xVec = 1;
-    } else if (this.pearl.inputter.isKeyDown(Keys.leftArrow)) {
-      xVec = -1;
+      xVec += 1;
+    }
+    if (this.pearl.inputter.isKeyDown(Keys.leftArrow)) {
+      xVec += -1;
     }
 
     if (this.onLadder) {
