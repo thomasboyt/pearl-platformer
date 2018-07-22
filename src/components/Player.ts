@@ -81,12 +81,20 @@ export default class Player extends Component<void> {
       this.grounded = false;
     }
 
-    if (this.yVec) {
-      this.getComponent(AnimationManager).set('jumping');
-    } else if (xVec) {
-      this.getComponent(AnimationManager).set('walking');
+    if (this.onLadder) {
+      if (xVec || this.yVec) {
+        this.getComponent(AnimationManager).set('walking');
+      } else {
+        this.getComponent(AnimationManager).set('idle');
+      }
     } else {
-      this.getComponent(AnimationManager).set('idle');
+      if (this.yVec) {
+        this.getComponent(AnimationManager).set('jumping');
+      } else if (xVec) {
+        this.getComponent(AnimationManager).set('walking');
+      } else {
+        this.getComponent(AnimationManager).set('idle');
+      }
     }
 
     if (xVec) {
