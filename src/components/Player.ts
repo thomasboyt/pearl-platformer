@@ -105,27 +105,7 @@ export default class Player extends Component<void> {
       this.grounded = false;
     }
 
-    if (this.onLadder) {
-      if (xVec || this.yVec) {
-        this.getComponent(AnimationManager).set('walking');
-      } else {
-        this.getComponent(AnimationManager).set('idle');
-      }
-    } else {
-      if (this.yVec) {
-        this.getComponent(AnimationManager).set('jumping');
-      } else if (xVec) {
-        this.getComponent(AnimationManager).set('walking');
-      } else {
-        this.getComponent(AnimationManager).set('idle');
-      }
-    }
-
-    if (xVec) {
-      if (this.getComponent(SpriteRenderer)) {
-        this.getComponent(SpriteRenderer).scaleX = xVec;
-      }
-    }
+    this.updateAnimation({ x: xVec, y: this.yVec });
 
     const tileMap = this.gameObject.parent!.getComponent(TiledTileMap);
 
@@ -142,6 +122,30 @@ export default class Player extends Component<void> {
     }
 
     this.checkFellOOB();
+  }
+
+  private updateAnimation(vec: Vector2) {
+    if (this.onLadder) {
+      if (vec.x || vec.y) {
+        this.getComponent(AnimationManager).set('walking');
+      } else {
+        this.getComponent(AnimationManager).set('idle');
+      }
+    } else {
+      if (vec.y) {
+        this.getComponent(AnimationManager).set('jumping');
+      } else if (vec.x) {
+        this.getComponent(AnimationManager).set('walking');
+      } else {
+        this.getComponent(AnimationManager).set('idle');
+      }
+    }
+
+    if (vec.x) {
+      if (this.getComponent(SpriteRenderer)) {
+        this.getComponent(SpriteRenderer).scaleX = vec.x;
+      }
+    }
   }
 
   private updateLadder(dt: number) {
