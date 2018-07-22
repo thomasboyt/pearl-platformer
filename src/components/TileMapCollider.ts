@@ -10,7 +10,14 @@ import {
   Physical,
 } from 'pearl';
 
+export enum TileCollisionType {
+  Empty,
+  Wall,
+  OneWay,
+}
+
 interface TileCollisionInformation {
+  type: TileCollisionType;
   polygon: PolygonShape;
   position: Position;
 }
@@ -29,37 +36,50 @@ export default class TileMapCollider extends Collider {
   tileMap!: ITileMap;
   collisionMap: (TileCollisionInformation | null)[] = [];
 
+  lastCollision?: TileCollisionInformation;
+
   create() {
     this.gameObject.registerCollider(this);
   }
 
-  initializeCollisions(tileMap: ITileMap, collisionMap: boolean[]) {
+  initializeCollisions(tileMap: ITileMap, collisionMap: TileCollisionType[]) {
     this.tileMap = tileMap;
 
-    this.collisionMap = collisionMap.map((isCollision, idx, arr) => {
-      if (isCollision) {
-        const { x, y } = tileMap.idxToTileCoordinates(idx);
+    this.collisionMap = collisionMap.map((type, idx, arr) => {
+      if (type === TileCollisionType.Empty) {
+        return null;
+      }
 
-        const worldX = x * tileMap.tileWidth;
-        const worldY = y * tileMap.tileHeight;
+      const { x, y } = tileMap.idxToTileCoordinates(idx);
 
-        const polygon = PolygonShape.createBox({
+      const worldX = x * tileMap.tileWidth;
+      const worldY = y * tileMap.tileHeight;
+
+      let polygon: PolygonShape;
+      if (type === TileCollisionType.OneWay) {
+        polygon = new PolygonShape({
+          points: [
+            [-tileMap.tileWidth / 2, -tileMap.tileHeight / 2],
+            [tileMap.tileWidth / 2, -tileMap.tileHeight / 2],
+          ],
+        });
+      } else {
+        polygon = PolygonShape.createBox({
           width: tileMap.tileWidth,
           height: tileMap.tileHeight,
         });
-
-        return {
-          polygon,
-          position: {
-            center: {
-              x: worldX + tileMap.tileWidth / 2,
-              y: worldY + tileMap.tileHeight / 2,
-            },
-          },
-        };
-      } else {
-        return null;
       }
+
+      return {
+        type,
+        polygon,
+        position: {
+          center: {
+            x: worldX + tileMap.tileWidth / 2,
+            y: worldY + tileMap.tileHeight / 2,
+          },
+        },
+      };
     });
   }
 
@@ -93,7 +113,7 @@ export default class TileMapCollider extends Collider {
 
       if (resp && resp.overlap > 0) {
         // see "internal edges"
-        // https://wildbunny.co.uk/blog/2011/12/14/how-to-make-a-2d-platform-game-part-2-collision-detection/#internal-edges
+        // https://wildbunny.co.uk/blog/2011/12/14/how-to-make-a-2d-platform-game-part-2-collision-detection/
         const normal = V.unit(resp.overlapVector);
         const tilePos = this.tileMap.idxToTileCoordinates(idx);
 
@@ -105,8 +125,15 @@ export default class TileMapCollider extends Collider {
         ];
 
         if (adjacentTile) {
-          continue;
+          // TODO: This needs to be finer to prevent seam collisions on top edge
+          // of one-way tiles, obviously
+          if (adjacentTile.type !== TileCollisionType.OneWay) {
+            continue;
+          }
         }
+
+        // this is used in a hack for one-way collisions, see Player.ts
+        this.lastCollision = collisionInfo;
 
         return resp;
       }

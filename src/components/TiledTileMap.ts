@@ -18,8 +18,13 @@ import {
   TiledTileLayer,
   ObjectInfo,
   loadObject,
+  TiledObject,
 } from '../tiled';
-import TileMapCollider, { ITileMap } from './TileMapCollider';
+
+import TileMapCollider, {
+  ITileMap,
+  TileCollisionType,
+} from './TileMapCollider';
 
 interface Settings {
   level: TiledLevelJSON;
@@ -48,6 +53,7 @@ export default class TiledTileMap extends Component<Settings>
   tileSprites: { [id: string]: Sprite } = {};
 
   tileLayers: TiledTileLayer[] = [];
+  tileset!: TiledTilesetJSON;
 
   create(settings: Settings) {
     const { level, tileset, spriteSheet, entityFactories } = settings;
@@ -57,6 +63,7 @@ export default class TiledTileMap extends Component<Settings>
     this.height = level.height;
     this.tileWidth = level.tilewidth;
     this.tileHeight = level.tileheight;
+    this.tileset = tileset;
 
     // NOTE: tilesets are 1-indexed. when multiple tilesets are supported, use
     // firstgid here
@@ -69,70 +76,83 @@ export default class TiledTileMap extends Component<Settings>
         this.tileLayers.push(layer);
       } else if (layer.type === 'objectgroup') {
         for (let object of layer.objects) {
-          const objectInfo = loadObject(object);
-
-          const resolvedType =
-            objectInfo.objectType === 'tile'
-              ? objectInfo.type || tileset.tiles[objectInfo.gid].type
-              : objectInfo.type;
-
-          if (!resolvedType) {
-            throw new Error(`can't parse object without a type: ${objectInfo}`);
-          }
-
-          const factory = entityFactories[resolvedType];
-
-          if (!factory) {
-            throw new Error(
-              `no entity factory for object type ${resolvedType}`
-            );
-          }
-
-          const entity = factory(objectInfo, this.pearl);
-
-          if (objectInfo.objectType === 'tile') {
-            entity.addComponent(
-              new SpriteRenderer({
-                sprite: this.tileSprites[objectInfo.gid + 1],
-                scaleX: objectInfo.scaleX,
-                scaleY: objectInfo.scaleY,
-              })
-            );
-          }
-
-          entity.addComponent(
-            new Physical({
-              center: {
-                x: objectInfo.topLeftX + objectInfo.width / 2,
-                y: objectInfo.topLeftY + objectInfo.height / 2,
-              },
-            })
-          );
-
-          this.pearl.entities.add(entity);
-          this.gameObject.appendChild(entity);
+          this.createObject(object, entityFactories);
         }
       }
     }
 
-    // create collision map
+    this.createCollisionMap();
+  }
+
+  private createObject(
+    object: TiledObject,
+    entityFactories: TiledEntityFactories
+  ) {
+    const { tileset } = this;
+    const objectInfo = loadObject(object);
+
+    const resolvedType =
+      objectInfo.objectType === 'tile'
+        ? objectInfo.type || tileset.tiles[objectInfo.gid].type
+        : objectInfo.type;
+
+    if (!resolvedType) {
+      throw new Error(`can't parse object without a type: ${objectInfo}`);
+    }
+
+    const factory = entityFactories[resolvedType];
+
+    if (!factory) {
+      throw new Error(`no entity factory for object type ${resolvedType}`);
+    }
+
+    const entity = factory(objectInfo, this.pearl);
+
+    if (objectInfo.objectType === 'tile') {
+      entity.addComponent(
+        new SpriteRenderer({
+          sprite: this.tileSprites[objectInfo.gid + 1],
+          scaleX: objectInfo.scaleX,
+          scaleY: objectInfo.scaleY,
+        })
+      );
+    }
+
+    entity.addComponent(
+      new Physical({
+        center: {
+          x: objectInfo.topLeftX + objectInfo.width / 2,
+          y: objectInfo.topLeftY + objectInfo.height / 2,
+        },
+      })
+    );
+
+    this.pearl.entities.add(entity);
+    this.gameObject.appendChild(entity);
+  }
+
+  private createCollisionMap() {
     const wallLayer = this.tileLayers.find((layer) => layer.name === 'Walls');
 
     if (!wallLayer) {
       throw new Error('missing layer for walls (should be called "Walls"');
     }
 
+    const { tileset } = this;
+
     const collisionMap = wallLayer.data.map((item) => {
       if (item === 0) {
-        return false;
+        return TileCollisionType.Empty;
       }
 
       const gid = item - 1;
 
       if (tileset.tiles[gid].type === 'wall') {
-        return true;
+        return TileCollisionType.Wall;
+      } else if (tileset.tiles[gid].type === 'platform') {
+        return TileCollisionType.OneWay;
       } else {
-        return false;
+        return TileCollisionType.Empty;
       }
     });
 
@@ -147,6 +167,38 @@ export default class TiledTileMap extends Component<Settings>
 
   tileCoordinatesToIdx(tilePos: Vector2): number {
     return tilePos.y * this.width + tilePos.x;
+  }
+
+  localPosToIdx(local: Vector2): number {
+    const { x, y } = local;
+
+    const rawTilePos = {
+      x: x / this.tileWidth,
+      y: y / this.tileHeight,
+    };
+
+    const floored = {
+      x: Math.floor(rawTilePos.x),
+      y: Math.floor(rawTilePos.y),
+    };
+
+    return this.tileCoordinatesToIdx(floored);
+  }
+
+  tilesAtLocalPos(worldPos: Vector2): string[] {
+    const tiles = [];
+
+    const idx = this.localPosToIdx(worldPos);
+    for (let layer of this.tileLayers) {
+      const gid = layer.data[idx];
+      if (gid) {
+        const type =
+          this.tileset.tiles[gid - 1] && this.tileset.tiles[gid - 1].type;
+        tiles.push(type);
+      }
+    }
+
+    return tiles;
   }
 
   private renderTile(

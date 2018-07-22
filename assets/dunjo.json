@@ -101,6 +101,10 @@
         {
          "type":"wall"
         },
+     "34":
+        {
+         "type":"platform"
+        },
      "35":
         {
          "type":"ladder"
