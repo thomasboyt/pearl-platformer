@@ -6,12 +6,14 @@ import {
   BoxCollider,
   PolygonRenderer,
   KinematicBody,
+  SpriteRenderer,
 } from 'pearl';
 import TiledTileMap, { TiledEntityFactories } from './TiledTileMap';
 import TileMapCollider from './TileMapCollider';
 import Player from './Player';
 import SpawningDyingRenderer from './SpawningDyingRenderer';
 import CameraMover from './CameraMover';
+import Enemy from './Enemy';
 
 export default class Game extends Component<null> {
   init() {
@@ -74,6 +76,43 @@ export default class Game extends Component<null> {
           name: 'spawn',
           tags: ['spawn'],
           components: [],
+        });
+      },
+
+      bloop: (objectInfo) => {
+        return new Entity({
+          name: 'bloop',
+          tags: ['enemy'],
+          components: [
+            new SpriteRenderer({
+              scaleX: 2,
+              scaleY: 2,
+            }),
+            new AnimationManager({
+              sheet: this.pearl.assets.get(SpriteSheetAsset, 'bloop'),
+              initialState: 'idle',
+              animations: {
+                idle: {
+                  frames: [0],
+                  frameLengthMs: 0,
+                },
+                walking: {
+                  frames: [1, 0],
+                  frameLengthMs: 200,
+                },
+              },
+            }),
+            new Enemy(),
+            new KinematicBody(),
+            new BoxCollider({
+              // TODO: Once this thing is actually affected by gravity, it'll
+              // sink into the ground. Need to add a "display offset" to
+              // SpriteRenderer, I think? Or a collider offset? but display
+              // offset much easier to reason about
+              width: 6,
+              height: 6,
+            }),
+          ],
         });
       },
     };

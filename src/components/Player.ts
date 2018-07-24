@@ -141,9 +141,9 @@ export default class Player extends Component<void> {
 
     if (collisions.length) {
       for (let collision of collisions) {
-        if (collision.gameObject.name === 'level') {
-          const { x, y } = collision.response.overlapVector;
+        const { x, y } = collision.response.overlapVector;
 
+        if (collision.gameObject.name === 'level') {
           const tileMapCollider = this.gameObject.parent!.getComponent(
             TileMapCollider
           );
@@ -155,16 +155,17 @@ export default class Player extends Component<void> {
           ) {
             // XXX: there's some glitchiness here that I can't figure out
             phys.translate({ x, y });
-          } else {
-            if (this.yVec > 0 && y > 0) {
-              this.yVec = 0;
-              this.grounded = true;
-              this.onLadder = false;
-            } else if (this.yVec < 0 && y < 0) {
-              // bumping into ceiling... not sure whether to keep this yet
-              this.yVec = 0;
-            }
+            continue;
           }
+        }
+
+        if (this.yVec > 0 && y > 0) {
+          this.yVec = 0;
+          this.grounded = true;
+          this.onLadder = false;
+        } else if (this.yVec < 0 && y < 0) {
+          // bumping into ceiling... not sure whether to keep this yet
+          this.yVec = 0;
         }
       }
     }
@@ -245,9 +246,9 @@ export default class Player extends Component<void> {
     this.state = 'dead';
     this.runCoroutine(function*(this: Player) {
       for (let i = 0; i < 3; i += 1) {
-        this.getComponent(SpriteRenderer).isVisible = true;
-        yield this.pearl.async.waitMs(200);
         this.getComponent(SpriteRenderer).isVisible = false;
+        yield this.pearl.async.waitMs(200);
+        this.getComponent(SpriteRenderer).isVisible = true;
         yield this.pearl.async.waitMs(200);
       }
       this.respawn();
@@ -272,14 +273,14 @@ export default class Player extends Component<void> {
       y: viewCenter.y,
     });
 
+    const spawns = [...this.gameObject.parent!.children].filter((entity) =>
+      entity.hasTag('spawn')
+    );
     const nextSpawn = getClosestEntityHorizontal(
       this.gameObject,
-      this.pearl.entities
-        .all('spawn')
-        .filter(
-          (entity) =>
-            entity.getComponent(Physical).center.x >= this.roomBoundaryX
-        )
+      spawns.filter(
+        (entity) => entity.getComponent(Physical).center.x >= this.roomBoundaryX
+      )
     );
 
     if (!nextSpawn) {
@@ -296,6 +297,10 @@ export default class Player extends Component<void> {
       this.nextRoom(collision.gameObject);
 
       this.pearl.entities.destroy(collision.gameObject);
+    } else if (collision.gameObject.hasTag('enemy')) {
+      if (this.state === 'alive') {
+        this.die();
+      }
     }
   }
 }

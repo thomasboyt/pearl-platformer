@@ -189,10 +189,10 @@ export default class TiledTileMap extends Component<Settings>
     return this.tileCoordinatesToIdx(floored);
   }
 
-  tilesAtLocalPos(worldPos: Vector2): string[] {
+  tilesAtLocalPos(localPos: Vector2): string[] {
     const tiles = [];
 
-    const idx = this.localPosToIdx(worldPos);
+    const idx = this.localPosToIdx(localPos);
     for (let layer of this.tileLayers) {
       const gid = layer.data[idx];
       if (gid) {

@@ -1,0 +1,19 @@
+{ "columns":2,
+ "image":"bloop.png",
+ "imageheight":4,
+ "imagewidth":8,
+ "margin":0,
+ "name":"bloop",
+ "spacing":0,
+ "tilecount":2,
+ "tileheight":4,
+ "tiles":
+    {
+     "0":
+        {
+         "type":"bloop"
+        }
+    },
+ "tilewidth":4,
+ "type":"tileset"
+}
