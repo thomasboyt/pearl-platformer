@@ -117,18 +117,9 @@ export default class TileMapCollider extends Collider {
       ),
     ];
 
-    for (let y = 0; y < this.collisionMap.length; y += 1) {
-      for (let x = 0; x < this.collisionMap[y].length; x += 1) {
-        if (
-          x < xBounds[0] ||
-          x > xBounds[1] ||
-          y < yBounds[0] ||
-          y > yBounds[1]
-        ) {
-          continue;
-        }
-
-        const collisionInfo = this.collisionMap[y][x];
+    for (let y = yBounds[0]; y <= yBounds[1]; y += 1) {
+      for (let x = xBounds[0]; x <= xBounds[1]; x += 1) {
+        const collisionInfo = this.getTile(x, y);
         if (!collisionInfo) {
           continue;
         }
