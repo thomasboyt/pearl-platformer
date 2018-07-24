@@ -11,6 +11,7 @@ import {
 
 import memoize from 'micro-memoize';
 import { deepEqual } from 'fast-equals';
+import { chunk } from 'lodash-es';
 
 import {
   TiledLevelJSON,
@@ -156,7 +157,10 @@ export default class TiledTileMap extends Component<Settings>
       }
     });
 
-    this.getComponent(TileMapCollider).initializeCollisions(this, collisionMap);
+    this.getComponent(TileMapCollider).initializeCollisions(
+      this,
+      chunk(collisionMap, this.width)
+    );
   }
 
   idxToTileCoordinates(idx: number): Vector2 {
