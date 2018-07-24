@@ -37,6 +37,13 @@ export default class Enemy extends Component<void> {
       vec.x *= -1;
     }
 
-    this.getComponent(KinematicBody).moveAndSlide(vec);
+    const collisions = this.getComponent(KinematicBody).moveAndSlide(vec);
+    for (let collision of collisions) {
+      if (collision.response.overlapVector.x) {
+        // turn around
+        this.xDirection *= -1;
+        this.getComponent(SpriteRenderer).scaleX *= -1;
+      }
+    }
   }
 }
