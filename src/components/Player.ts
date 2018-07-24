@@ -58,13 +58,15 @@ export default class Player extends Component<void> {
     const phys = this.getComponent(Physical);
     const editorStartPosition = phys.center;
 
+    const triggers = [...this.gameObject.parent!.children].filter((entity) =>
+      entity.hasTag('roomTrigger')
+    );
+
     const lastTrigger = getClosestEntityHorizontal(
       this.gameObject,
-      this.pearl.entities
-        .all('roomTrigger')
-        .filter(
-          (entity) => entity.getComponent(Physical).center.x <= phys.center.x
-        )
+      triggers.filter(
+        (entity) => entity.getComponent(Physical).center.x <= phys.center.x
+      )
     );
     if (!lastTrigger) {
       throw new Error('cannot find room trigger to left of player start');
