@@ -1,5 +1,6 @@
 import {
   Component,
+  Entity,
   KinematicBody,
   Keys,
   SpriteRenderer,
@@ -16,12 +17,35 @@ import SpawningDyingRenderer from './SpawningDyingRenderer';
 import CameraMover from './CameraMover';
 
 const gravityAccel = 0.002;
-const jumpSpeed = 1.5;
+const jumpSpeed = 1;
 
 type PlayerState = 'spawning' | 'alive' | 'dead';
 
+function getClosestEntityHorizontal(to: Entity, entities: Entity[]) {
+  const targetCenter = to.getComponent(Physical).center;
+
+  return entities.reduce(
+    (last, entity) => {
+      if (!last) {
+        return entity;
+      }
+
+      const closer =
+        Math.abs(entity.getComponent(Physical).center.x - targetCenter.x) <
+        Math.abs(last.getComponent(Physical).center.x - targetCenter.x);
+
+      if (closer) {
+        return entity;
+      } else {
+        return last;
+      }
+    },
+    null as Entity | null
+  );
+}
+
 export default class Player extends Component<void> {
-  playerSpeed = 0.03;
+  playerSpeed = 0.04;
   yVec = 0;
   grounded = false;
   onLadder = false;
@@ -31,7 +55,24 @@ export default class Player extends Component<void> {
   roomBoundaryX = 0;
 
   init() {
-    this.spawnPosition = this.getComponent(Physical).center;
+    const phys = this.getComponent(Physical);
+    const editorStartPosition = phys.center;
+
+    const lastTrigger = getClosestEntityHorizontal(
+      this.gameObject,
+      this.pearl.entities
+        .all('roomTrigger')
+        .filter(
+          (entity) => entity.getComponent(Physical).center.x <= phys.center.x
+        )
+    );
+    if (!lastTrigger) {
+      throw new Error('cannot find room trigger to left of player start');
+    }
+
+    this.nextRoom(lastTrigger, true);
+    // Debugging helper
+    this.spawnPosition = editorStartPosition;
     this.respawn();
   }
 
@@ -69,6 +110,28 @@ export default class Player extends Component<void> {
       }
     }
 
+    this.moveAndCollide(dt, xVec);
+
+    this.updateAnimation({ x: xVec, y: this.yVec });
+
+    const tileMap = this.gameObject.parent!.getComponent(TiledTileMap);
+    const tiles = tileMap.tilesAtLocalPos(phys.localCenter);
+    if (this.pearl.inputter.isKeyDown(Keys.upArrow)) {
+      if (tiles.indexOf('chain') !== -1 || tiles.indexOf('ladder') !== -1) {
+        this.onLadder = true;
+      }
+    }
+
+    if (tiles.indexOf('spikes') !== -1) {
+      this.die();
+    }
+
+    this.checkFellOOB();
+  }
+
+  private moveAndCollide(dt: number, xVec: number) {
+    const phys = this.getComponent(Physical);
+
     const collisions = this.getComponent(KinematicBody).moveAndSlide({
       x: xVec * dt * this.playerSpeed,
       y: this.yVec,
@@ -97,7 +160,7 @@ export default class Player extends Component<void> {
               this.onLadder = false;
             } else if (this.yVec < 0 && y < 0) {
               // bumping into ceiling... not sure whether to keep this yet
-              // this.yVec = 0;
+              this.yVec = 0;
             }
           }
         }
@@ -111,24 +174,6 @@ export default class Player extends Component<void> {
     if (this.yVec !== 0) {
       this.grounded = false;
     }
-
-    this.updateAnimation({ x: xVec, y: this.yVec });
-
-    const tileMap = this.gameObject.parent!.getComponent(TiledTileMap);
-
-    const tiles = tileMap.tilesAtLocalPos(phys.localCenter);
-
-    if (this.pearl.inputter.isKeyDown(Keys.upArrow)) {
-      if (tiles.indexOf('chain') !== -1 || tiles.indexOf('ladder') !== -1) {
-        this.onLadder = true;
-      }
-    }
-
-    if (tiles.indexOf('spikes') !== -1) {
-      this.die();
-    }
-
-    this.checkFellOOB();
   }
 
   private updateAnimation(vec: Vector2) {
@@ -213,32 +258,35 @@ export default class Player extends Component<void> {
     }
   }
 
-  private nextRoom(trigger: GameObject) {
+  private nextRoom(trigger: GameObject, skipCameraAnimation?: boolean) {
     const viewCenter = this.pearl.renderer.getViewCenter();
     const viewSize = this.pearl.renderer.getViewSize();
 
-    this.getComponent(CameraMover).moveCamera(2000, {
-      x: viewCenter.x + viewSize.x,
+    this.roomBoundaryX = trigger.getComponent(Physical).center.x;
+
+    let cameraMoveTime = skipCameraAnimation ? 0 : 2000;
+    this.getComponent(CameraMover).moveCamera(cameraMoveTime, {
+      x: this.roomBoundaryX + viewSize.x / 2,
       y: viewCenter.y,
     });
 
-    const spawns = this.pearl.entities.all('spawn');
-    let closestSpawnPosition: Vector2 | undefined = undefined;
+    const nextSpawn = getClosestEntityHorizontal(
+      this.gameObject,
+      this.pearl.entities
+        .all('spawn')
+        .filter(
+          (entity) =>
+            entity.getComponent(Physical).center.x >= this.roomBoundaryX
+        )
+    );
 
-    for (let spawn of spawns) {
-      const pos = spawn.getComponent(Physical).center;
-      if (!closestSpawnPosition || Math.abs(pos.x - closestSpawnPosition.x)) {
-        closestSpawnPosition = pos;
-      }
+    if (!nextSpawn) {
+      throw new Error(
+        `could not find a spawn after room trigger @ ${this.roomBoundaryX}`
+      );
     }
 
-    if (!closestSpawnPosition) {
-      throw new Error('could not find a spawn');
-    }
-
-    this.roomBoundaryX = trigger.getComponent(Physical).center.x;
-
-    this.spawnPosition = closestSpawnPosition;
+    this.spawnPosition = nextSpawn.getComponent(Physical).center;
   }
 
   onCollision(collision: CollisionInformation) {

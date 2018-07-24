@@ -27,9 +27,11 @@ export default class Game extends Component<null> {
             new KinematicBody(),
             new CameraMover(),
             new BoxCollider({
-              width: 8,
+              width: 6,
               height: 8,
             }),
+            // hitbox debug
+            // new PolygonRenderer({ strokeStyle: 'limegreen' }),
             new AnimationManager({
               sheet,
               initialState: 'idle',
