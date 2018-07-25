@@ -168,7 +168,7 @@ export default class Player extends Component<void> {
     const coordinates = tileMap.localPosToTileCoordinates(phys.center);
     const center = {
       x: coordinates.x * tileMap.tileWidth + tileMap.tileWidth / 2,
-      y: coordinates.y * tileMap.tileHeight + tileMap.tileHeight / 2,
+      y: phys.center.y,
     };
     phys.center = center;
 
