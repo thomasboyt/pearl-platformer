@@ -14,6 +14,7 @@ import Player from './Player';
 import SpawningDyingRenderer from './SpawningDyingRenderer';
 import CameraMover from './CameraMover';
 import Enemy from './Enemy';
+import PlatformerPhysics from './PlatformerPhysics';
 
 export default class Game extends Component<null> {
   init() {
@@ -31,6 +32,9 @@ export default class Game extends Component<null> {
             new BoxCollider({
               width: 6,
               height: 8,
+            }),
+            new PlatformerPhysics({
+              gravity: 0.002,
             }),
             // hitbox debug
             // new PolygonRenderer({ strokeStyle: 'limegreen' }),

@@ -1,201 +1,83 @@
-// import {
-//   Component,
-//   Entity,
-//   KinematicBody,
-//   Keys,
-//   SpriteRenderer,
-//   AnimationManager,
-//   CollisionInformation,
-//   Physical,
-//   BoxCollider,
-//   Vector2,
-//   GameObject,
-// } from 'pearl';
-// import TileMapCollider, { TileCollisionType } from './TileMapCollider';
-// import TiledTileMap from './TiledTileMap';
-// import SpawningDyingRenderer from './SpawningDyingRenderer';
-// import CameraMover from './CameraMover';
+import { Component, KinematicBody, Physical } from 'pearl';
+import TileMapCollider, { TileCollisionType } from './TileMapCollider';
 
-// const gravityAccel = 0.002;
+interface Properties {
+  gravity: number;
+}
 
-// export default class Player extends Component<void> {
-//   moveSpeed: number = 0;
-//   vec = { x: 0, y: 0 };
-//   grounded = false;
-//   onLadder = false;
+export default class PlatformerPhysics extends Component<Partial<Properties>>
+  implements Properties {
+  vel = { x: 0, y: 0 };
+  gravity = 0;
+  grounded = true;
 
-//   update(dt: number) {
-//     // TODO: if (!isEnabled) { return }
-//     this.vec.y += gravityAccel * dt;
+  create(props: Properties) {
+    const keys = Object.keys(props) as (keyof Properties)[];
 
-//     if (this.pearl.inputter.isKeyPressed(Keys.space) && this.grounded) {
-//       this.jump();
-//     }
+    for (let key of keys) {
+      const val = props[key];
+      this[key] = val;
+    }
+  }
 
-//     this.moveAndCollide(dt);
-//   }
+  move(dt: number) {
+    const phys = this.getComponent(Physical);
 
-//   private moveAndCollide(dt: number) {
-//     const phys = this.getComponent(Physical);
+    this.vel.y += this.gravity * dt;
 
-//     const collisions = this.getComponent(KinematicBody).moveAndSlide({
-//       x: this.vec.x * dt * this.moveSpeed,
-//       y: this.vec.y,
-//     });
+    const collisions = this.getComponent(KinematicBody).moveAndSlide(this.vel);
 
-//     if (collisions.length) {
-//       for (let collision of collisions) {
-//         if (collision.gameObject.name === 'level') {
-//           const { x, y } = collision.response.overlapVector;
+    if (collisions.length) {
+      for (let collision of collisions) {
+        const { x, y } = collision.response.overlapVector;
 
-//           const tileMapCollider = this.gameObject.parent!.getComponent(
-//             TileMapCollider
-//           );
+        // XXX: This is kind of a shitty place for this logic.
+        //
+        // The tricky bit here is that testShape(), over in
+        // TileMapCollider-land, doesn't get the velocity of the tested entity,
+        // and can't conditionally not return the collision.
+        //
+        // It... might be reasonable to add velocity as an optional third
+        // property to test shape, or maybe have `prevPosition` or something?
+        // KinematicBody could then pass down the chain  this when it calls
+        // getCollision(), but, eghhh, seems rough.
+        //
+        // The other option, to at least keep the logic here but not make it
+        // TileMapCollider specific, would be to create individual entities from
+        // TileMapCollider so you could say collision.entity.hasTag('oneway'),
+        // or something. I don't like this idea in the slightest.
+        //
+        // No matter what, *some* one-way logic will definitely have to live in
+        // this component, considering that I want to add the ability to
+        // drop-down through one-way platforms, and that'll probably involve
+        // something like `if (did drop down and colliding with one-way
+        // platform) { ignore collision }`. I just want it to be independent of
+        // TileMapCollider.
+        if (collision.gameObject.collider instanceof TileMapCollider) {
+          const tileMapCollider = collision.gameObject.collider;
 
-//           // XXX: This is kind of a shitty place for this logic.
-//           if (
-//             tileMapCollider.lastCollision!.type === TileCollisionType.OneWay &&
-//             this.vec.y < 0
-//           ) {
-//             // XXX: there's some glitchiness here that I can't figure out
-//             phys.translate({ x, y });
-//           } else {
-//             if (this.vec.y > 0 && y > 0) {
-//               this.vec.y = 0;
-//               this.grounded = true;
-//               this.onLadder = false;
-//             } else if (this.vec.y < 0 && y < 0) {
-//               // bumping into ceiling... not sure whether to keep this yet
-//               this.vec.y = 0;
-//             }
-//           }
-//         }
-//       }
-//     }
+          if (
+            tileMapCollider.lastCollision!.type === TileCollisionType.OneWay &&
+            this.vel.y < 0
+          ) {
+            // XXX: there's some glitchiness here that I can't figure out
+            phys.translate({ x, y });
+            continue;
+          }
+        }
 
-//     if (this.vec.y !== 0) {
-//       this.grounded = false;
-//     }
-//   }
+        if (this.vel.y > 0 && y > 0) {
+          this.vel.y = 0;
+          this.grounded = true;
+        } else if (this.vel.y < 0 && y < 0) {
+          // bumping into ceiling... not sure whether to keep this yet
+          this.vel.y = 0;
+        }
+      }
+    }
 
-//   private updateAnimation(vec: Vector2) {
-//     if (this.onLadder) {
-//       if (vec.x || vec.y) {
-//         this.getComponent(AnimationManager).set('walking');
-//       } else {
-//         this.getComponent(AnimationManager).set('idle');
-//       }
-//     } else {
-//       if (vec.y) {
-//         this.getComponent(AnimationManager).set('jumping');
-//       } else if (vec.x) {
-//         this.getComponent(AnimationManager).set('walking');
-//       } else {
-//         this.getComponent(AnimationManager).set('idle');
-//       }
-//     }
-
-//     if (vec.x) {
-//       if (this.getComponent(SpriteRenderer)) {
-//         this.getComponent(SpriteRenderer).scaleX = vec.x;
-//       }
-//     }
-//   }
-
-//   private updateLadder(dt: number) {
-//     const tileMap = this.gameObject.parent!.getComponent(TiledTileMap);
-//     const phys = this.getComponent(Physical);
-//     const tiles = tileMap.tilesAtLocalPos(phys.localCenter);
-
-//     if (tiles.indexOf('chain') === -1 && tiles.indexOf('ladder') === -1) {
-//       this.onLadder = false;
-//       return;
-//     }
-
-//     if (this.pearl.inputter.isKeyDown(Keys.upArrow)) {
-//       this.vec.y = -this.playerSpeed * dt;
-//     } else if (this.pearl.inputter.isKeyDown(Keys.downArrow)) {
-//       this.vec.y = this.playerSpeed * dt;
-//     } else {
-//       this.vec.y = 0;
-//     }
-//   }
-
-//   private checkFellOOB() {
-//     const topEdge =
-//       this.getComponent(Physical).center.y -
-//       this.getComponent(BoxCollider).height / 2;
-
-//     if (topEdge > this.pearl.renderer.getViewSize().y) {
-//       this.respawn();
-//     }
-//   }
-
-//   private respawn() {
-//     this.vec.y = 0; // quick fix for deaths from tunnelin thru floor
-//     this.getComponent(Physical).center = this.spawnPosition;
-//     this.getComponent(SpriteRenderer).scaleX = 1;
-//     this.state = 'spawning';
-//     this.getComponent(SpawningDyingRenderer).spawn(() => {
-//       this.state = 'alive';
-//     });
-//   }
-
-//   private die() {
-//     this.state = 'dead';
-//     this.runCoroutine(function*(this: Player) {
-//       for (let i = 0; i < 3; i += 1) {
-//         this.getComponent(SpriteRenderer).isVisible = true;
-//         yield this.pearl.async.waitMs(200);
-//         this.getComponent(SpriteRenderer).isVisible = false;
-//         yield this.pearl.async.waitMs(200);
-//       }
-//       this.respawn();
-//     });
-//   }
-
-//   private jump() {
-//     if (this.grounded) {
-//       this.vec.y = -jumpSpeed;
-//     }
-//   }
-
-//   private nextRoom(trigger: GameObject, skipCameraAnimation?: boolean) {
-//     const viewCenter = this.pearl.renderer.getViewCenter();
-//     const viewSize = this.pearl.renderer.getViewSize();
-
-//     this.roomBoundaryX = trigger.getComponent(Physical).center.x;
-
-//     let cameraMoveTime = skipCameraAnimation ? 0 : 2000;
-//     this.getComponent(CameraMover).moveCamera(cameraMoveTime, {
-//       x: this.roomBoundaryX + viewSize.x / 2,
-//       y: viewCenter.y,
-//     });
-
-//     const nextSpawn = getClosestEntityHorizontal(
-//       this.gameObject,
-//       this.pearl.entities
-//         .all('spawn')
-//         .filter(
-//           (entity) =>
-//             entity.getComponent(Physical).center.x >= this.roomBoundaryX
-//         )
-//     );
-
-//     if (!nextSpawn) {
-//       throw new Error(
-//         `could not find a spawn after room trigger @ ${this.roomBoundaryX}`
-//       );
-//     }
-
-//     this.spawnPosition = nextSpawn.getComponent(Physical).center;
-//   }
-
-//   onCollision(collision: CollisionInformation) {
-//     if (collision.gameObject.hasTag('roomTrigger')) {
-//       this.nextRoom(collision.gameObject);
-
-//       this.pearl.entities.destroy(collision.gameObject);
-//     }
-//   }
-// }
+    if (this.vel.y !== 0) {
+      this.grounded = false;
+    }
+  }
+}

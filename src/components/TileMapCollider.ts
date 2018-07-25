@@ -144,13 +144,17 @@ export default class TileMapCollider extends Collider {
         if (resp && resp.overlap > 0) {
           // see "internal edges"
           // https://wildbunny.co.uk/blog/2011/12/14/how-to-make-a-2d-platform-game-part-2-collision-detection/
+
+          // XXX: This only works because overlapVector is always `{x: n, y: 0}`
+          // or `{x: 0, y: n}`. May want to make sure this works for multi-axis
+          // tests in the future...
           const normal = V.unit(resp.overlapVector);
 
           const adjacentTile = this.getTile(x + normal.x, y + normal.y);
 
           if (adjacentTile) {
-            // TODO: This needs to be finer to prevent seam collisions on top edge
-            // of one-way tiles, obviously
+            // TODO: This needs to be finer to prevent seam collisions on top
+            // edge of one-way tiles, obviously
             if (adjacentTile.type !== TileCollisionType.OneWay) {
               continue;
             }

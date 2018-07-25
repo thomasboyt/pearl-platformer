@@ -173,7 +173,7 @@ export default class TiledTileMap extends Component<Settings>
     return tilePos.y * this.width + tilePos.x;
   }
 
-  localPosToIdx(local: Vector2): number {
+  localPosToTileCoordinates(local: Vector2): Vector2 {
     const { x, y } = local;
 
     const rawTilePos = {
@@ -186,7 +186,11 @@ export default class TiledTileMap extends Component<Settings>
       y: Math.floor(rawTilePos.y),
     };
 
-    return this.tileCoordinatesToIdx(floored);
+    return floored;
+  }
+
+  localPosToIdx(local: Vector2): number {
+    return this.tileCoordinatesToIdx(this.localPosToTileCoordinates(local));
   }
 
   tilesAtLocalPos(localPos: Vector2): string[] {
