@@ -123,7 +123,7 @@ export default class Game extends Component<null> {
         });
       },
       key: (objectInfo) => {
-        return new Entity({
+        const entity = new Entity({
           name: 'key',
           tags: [Tag.Key],
           zIndex: ZIndex.Objects,
@@ -137,6 +137,9 @@ export default class Game extends Component<null> {
             }),
           ],
         });
+
+        entity.getComponent(BoxCollider).isTrigger = true;
+        return entity;
       },
       block: (objectInfo) => {
         return new Entity({
