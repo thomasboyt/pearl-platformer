@@ -20,6 +20,7 @@ import {
   ObjectInfo,
   loadObject,
   TiledObject,
+  TiledTilesetTile,
 } from '../tiled';
 
 import TileMapCollider, {
@@ -147,10 +148,15 @@ export default class TiledTileMap extends Component<Settings>
       }
 
       const gid = item - 1;
+      const tile = this.getTilesetDataForGid(gid);
 
-      if (tileset.tiles[gid].type === 'wall') {
+      if (!tile) {
+        return TileCollisionType.Empty;
+      }
+
+      if (tile.type === 'wall' || tile.type === 'block') {
         return TileCollisionType.Wall;
-      } else if (tileset.tiles[gid].type === 'platform') {
+      } else if (tile.type === 'platform') {
         return TileCollisionType.OneWay;
       } else {
         return TileCollisionType.Empty;
@@ -161,6 +167,53 @@ export default class TiledTileMap extends Component<Settings>
       this,
       chunk(collisionMap, this.width)
     );
+  }
+
+  getTilesetDataForGid(gid: number): TiledTilesetTile {
+    return this.tileset.tiles[gid];
+  }
+
+  getTilesOfType(type: string): Vector2[] {
+    const indices: number[] = [];
+
+    for (let layer of this.tileLayers) {
+      for (let idx = 0; idx < layer.data.length; idx += 1) {
+        const gid = layer.data[idx] - 1;
+        const tile = this.getTilesetDataForGid(gid);
+        if (tile && tile.type === type) {
+          indices.push(idx);
+        }
+      }
+    }
+
+    return indices.map((idx) => this.idxToTileCoordinates(idx));
+  }
+
+  findGidForType(type: string): number | undefined {
+    for (let gid of Object.keys(this.tileset.tiles)) {
+      if (this.tileset.tiles[gid].type === type) {
+        return parseInt(gid);
+      }
+    }
+  }
+
+  setTileAt({ x, y }: Vector2, gid: number, layerName: string) {
+    const layerIdx = this.tileLayers.findIndex(
+      (layer) => layer.name === layerName
+    );
+
+    if (layerIdx === -1) {
+      throw new Error(`no tile layer found named ${layerName}`);
+    }
+
+    // lazy memoization bust
+    this.tileLayers = this.tileLayers.slice();
+
+    const data = this.tileLayers[layerIdx].data;
+    data[this.tileCoordinatesToIdx({ x, y })] = gid + 1;
+
+    // TODO: don't redo this every time lol
+    this.createCollisionMap();
   }
 
   idxToTileCoordinates(idx: number): Vector2 {
@@ -227,6 +280,7 @@ export default class TiledTileMap extends Component<Settings>
   }
 
   private _drawTiles(tileLayers: TiledTileLayer[]): HTMLCanvasElement {
+    console.log('redrawing tiles');
     const canvas = document.createElement('canvas');
     canvas.width = this.tileWidth * this.width;
     canvas.height = this.tileHeight * this.height;
@@ -243,7 +297,9 @@ export default class TiledTileMap extends Component<Settings>
     return canvas;
   }
 
-  private drawTiles = memoize(this._drawTiles, { isEqual: deepEqual });
+  // XXX: Yes, this memoization means this._drawTiles has to be slice()d every
+  // time it's changed!!
+  private drawTiles = memoize(this._drawTiles);
 
   // TODO: allow TiledTileMap to be positioned
   render(ctx: CanvasRenderingContext2D) {

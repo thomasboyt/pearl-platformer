@@ -3,6 +3,8 @@ export enum Tag {
   Enemy = 'enemy',
   Spawn = 'spawn',
   RoomTrigger = 'roomTrigger',
+  Key = 'key',
+  Block = 'block',
 }
 
 export enum ZIndex {

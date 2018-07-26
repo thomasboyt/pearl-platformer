@@ -122,6 +122,38 @@ export default class Game extends Component<null> {
           ],
         });
       },
+      key: (objectInfo) => {
+        return new Entity({
+          name: 'key',
+          tags: [Tag.Key],
+          zIndex: ZIndex.Objects,
+          components: [
+            new SpriteRenderer({
+              sprite: sheet.createSprite(13),
+            }),
+            new BoxCollider({
+              width: 4,
+              height: 4,
+            }),
+          ],
+        });
+      },
+      block: (objectInfo) => {
+        return new Entity({
+          name: 'block',
+          tags: [Tag.Block],
+          zIndex: ZIndex.World,
+          components: [
+            new SpriteRenderer({
+              sprite: sheet.createSprite(21),
+            }),
+            new BoxCollider({
+              width: 12,
+              height: 12,
+            }),
+          ],
+        });
+      },
     };
 
     const level = this.pearl.entities.add(
