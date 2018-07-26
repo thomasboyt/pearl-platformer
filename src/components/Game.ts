@@ -15,6 +15,7 @@ import SpawningDyingRenderer from './SpawningDyingRenderer';
 import CameraMover from './CameraMover';
 import Enemy from './Enemy';
 import PlatformerPhysics from './PlatformerPhysics';
+import { Tag, ZIndex } from '../types';
 
 export default class Game extends Component<null> {
   init() {
@@ -24,6 +25,7 @@ export default class Game extends Component<null> {
       player: (objectInfo) => {
         return new Entity({
           name: 'player',
+          zIndex: ZIndex.Objects,
           components: [
             new Player(),
             new SpawningDyingRenderer(),
@@ -62,7 +64,7 @@ export default class Game extends Component<null> {
       roomTrigger: (objectInfo) => {
         const entity = new Entity({
           name: 'roomTrigger',
-          tags: ['roomTrigger'],
+          tags: [Tag.RoomTrigger],
           components: [
             new BoxCollider({
               width: objectInfo.width,
@@ -78,7 +80,7 @@ export default class Game extends Component<null> {
       spawn: () => {
         return new Entity({
           name: 'spawn',
-          tags: ['spawn'],
+          tags: [Tag.Spawn],
           components: [],
         });
       },
@@ -86,7 +88,8 @@ export default class Game extends Component<null> {
       bloop: (objectInfo) => {
         return new Entity({
           name: 'bloop',
-          tags: ['enemy'],
+          tags: [Tag.Enemy],
+          zIndex: ZIndex.Objects,
           components: [
             new SpriteRenderer({
               scaleX: 2,
@@ -124,6 +127,7 @@ export default class Game extends Component<null> {
     const level = this.pearl.entities.add(
       new Entity({
         name: 'level',
+        zIndex: ZIndex.World,
         components: [
           new TiledTileMap({
             level: require('../../assets/level.json'),

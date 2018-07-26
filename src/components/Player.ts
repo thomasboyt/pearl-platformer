@@ -17,6 +17,7 @@ import TiledTileMap from './TiledTileMap';
 import SpawningDyingRenderer from './SpawningDyingRenderer';
 import CameraMover from './CameraMover';
 import PlatformerPhysics from './PlatformerPhysics';
+import { Tag } from '../types';
 
 const jumpSpeed = 1;
 
@@ -58,7 +59,7 @@ export default class Player extends Component<void> {
     const editorStartPosition = phys.center;
 
     const triggers = [...this.gameObject.parent!.children].filter((entity) =>
-      entity.hasTag('roomTrigger')
+      entity.hasTag(Tag.RoomTrigger)
     );
 
     const lastTrigger = getClosestEntityHorizontal(
@@ -277,7 +278,7 @@ export default class Player extends Component<void> {
     });
 
     const spawns = [...this.gameObject.parent!.children].filter((entity) =>
-      entity.hasTag('spawn')
+      entity.hasTag(Tag.Spawn)
     );
     const nextSpawn = getClosestEntityHorizontal(
       this.gameObject,
@@ -296,11 +297,11 @@ export default class Player extends Component<void> {
   }
 
   onCollision(collision: CollisionInformation) {
-    if (collision.gameObject.hasTag('roomTrigger')) {
+    if (collision.gameObject.hasTag(Tag.RoomTrigger)) {
       this.nextRoom(collision.gameObject);
 
       this.pearl.entities.destroy(collision.gameObject);
-    } else if (collision.gameObject.hasTag('enemy')) {
+    } else if (collision.gameObject.hasTag(Tag.Enemy)) {
       if (this.state === 'alive') {
         this.die();
       }
