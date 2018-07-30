@@ -5,6 +5,7 @@ export enum Tag {
   RoomTrigger = 'roomTrigger',
   Key = 'key',
   Block = 'block',
+  World = 'world',
 }
 
 export enum ZIndex {
