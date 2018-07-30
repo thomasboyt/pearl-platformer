@@ -29,6 +29,10 @@ export default class PlatformerPhysics extends Component<Partial<Properties>>
 
     if (collisions.length) {
       for (let collision of collisions) {
+        if (collision.collider.isTrigger) {
+          continue;
+        }
+
         const { x, y } = collision.response.overlapVector;
 
         // XXX: This is kind of a shitty place for this logic.
