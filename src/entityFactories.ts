@@ -11,7 +11,6 @@ import {
 import { TiledEntityFactories } from './components/TiledTileMap';
 import Player from './components/Player';
 import SpawningDyingRenderer from './components/SpawningDyingRenderer';
-import CameraMover from './components/CameraMover';
 import Enemy from './components/Enemy';
 import PlatformerPhysics from './components/PlatformerPhysics';
 import { Tag, ZIndex } from './types';
@@ -27,7 +26,6 @@ const entityFactories: TiledEntityFactories = {
         new Player(),
         new SpawningDyingRenderer(),
         new KinematicBody(),
-        new CameraMover(),
         new BoxCollider({
           width: 6,
           height: 8,

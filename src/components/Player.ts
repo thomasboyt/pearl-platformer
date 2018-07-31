@@ -1,7 +1,6 @@
 import {
   Component,
   Entity,
-  KinematicBody,
   Keys,
   SpriteRenderer,
   AnimationManager,
@@ -9,73 +8,31 @@ import {
   Physical,
   BoxCollider,
   Vector2,
-  GameObject,
-  VectorMaths as V,
 } from 'pearl';
-import TileMapCollider, { TileCollisionType } from './TileMapCollider';
 import TiledTileMap from './TiledTileMap';
 import SpawningDyingRenderer from './SpawningDyingRenderer';
-import CameraMover from './CameraMover';
 import PlatformerPhysics from './PlatformerPhysics';
+import RoomManager from './RoomManager';
 import { Tag } from '../types';
 
 const jumpSpeed = 1;
 
 type PlayerState = 'spawning' | 'alive' | 'dead';
 
-function getClosestEntityHorizontal(to: Entity, entities: Entity[]) {
-  const targetCenter = to.getComponent(Physical).center;
-
-  return entities.reduce(
-    (last, entity) => {
-      if (!last) {
-        return entity;
-      }
-
-      const closer =
-        Math.abs(entity.getComponent(Physical).center.x - targetCenter.x) <
-        Math.abs(last.getComponent(Physical).center.x - targetCenter.x);
-
-      if (closer) {
-        return entity;
-      } else {
-        return last;
-      }
-    },
-    null as Entity | null
-  );
-}
-
 export default class Player extends Component<void> {
   playerSpeed = 0.04;
   onLadder = false;
   state: PlayerState = 'spawning';
-  spawnPosition!: Vector2;
-
-  leftBoundaryX = 0;
-  rightBoundaryX = Infinity;
 
   init() {
     const phys = this.getComponent(Physical);
     const editorStartPosition = phys.center;
 
-    const triggers = [...this.gameObject.parent!.children].filter((entity) =>
-      entity.hasTag(Tag.RoomTrigger)
-    );
+    const roomManager = this.entity.parent!.getComponent(RoomManager);
+    roomManager.setRoomFromPosition(phys.center.x);
 
-    const lastTrigger = getClosestEntityHorizontal(
-      this.gameObject,
-      triggers.filter(
-        (entity) => entity.getComponent(Physical).center.x <= phys.center.x
-      )
-    );
-    if (!lastTrigger) {
-      throw new Error('cannot find room trigger to left of player start');
-    }
-
-    this.nextRoom(lastTrigger, true);
     // Debugging helper
-    this.spawnPosition = editorStartPosition;
+    roomManager.spawnPosition = editorStartPosition;
     this.respawn();
   }
 
@@ -241,7 +198,9 @@ export default class Player extends Component<void> {
 
   private respawn() {
     this.getComponent(PlatformerPhysics).vel = { x: 0, y: 0 };
-    this.getComponent(Physical).center = this.spawnPosition;
+    this.getComponent(Physical).center = this.entity.parent!.getComponent(
+      RoomManager
+    ).spawnPosition;
     this.getComponent(SpriteRenderer).scaleX = 1;
     this.state = 'spawning';
     this.getComponent(SpawningDyingRenderer).spawn(() => {
@@ -266,59 +225,11 @@ export default class Player extends Component<void> {
     this.getComponent(PlatformerPhysics).vel.y = -jumpSpeed;
   }
 
-  private nextRoom(trigger: GameObject, skipCameraAnimation?: boolean) {
-    // Get left boundary
-    this.leftBoundaryX = trigger.getComponent(Physical).center.x;
-
-    // Get right boundary from next trigger
-    const triggers = [...this.gameObject.parent!.children].filter((entity) =>
-      entity.hasTag(Tag.RoomTrigger)
-    );
-
-    const nextTrigger = getClosestEntityHorizontal(
-      this.gameObject,
-      triggers.filter(
-        (entity) => entity.getComponent(Physical).center.x > this.leftBoundaryX
-      )
-    );
-
-    this.rightBoundaryX = nextTrigger
-      ? nextTrigger.getComponent(Physical).center.x
-      : Infinity;
-
-    // move camera
-    const viewCenter = this.pearl.renderer.getViewCenter();
-    const viewSize = this.pearl.renderer.getViewSize();
-
-    let cameraMoveTime = skipCameraAnimation ? 0 : 2000;
-    this.getComponent(CameraMover).moveCamera(cameraMoveTime, {
-      x: this.leftBoundaryX + viewSize.x / 2,
-      y: viewCenter.y,
-    });
-
-    // set spawn position
-    const spawns = [...this.gameObject.parent!.children].filter((entity) =>
-      entity.hasTag(Tag.Spawn)
-    );
-    const nextSpawn = getClosestEntityHorizontal(
-      this.gameObject,
-      spawns.filter(
-        (entity) => entity.getComponent(Physical).center.x >= this.leftBoundaryX
-      )
-    );
-
-    if (!nextSpawn) {
-      throw new Error(
-        `could not find a spawn after room trigger @ ${this.leftBoundaryX}`
-      );
-    }
-
-    this.spawnPosition = nextSpawn.getComponent(Physical).center;
-  }
-
   onCollision(collision: CollisionInformation) {
     if (collision.gameObject.hasTag(Tag.RoomTrigger)) {
-      this.nextRoom(collision.gameObject);
+      this.entity
+        .parent!.getComponent(RoomManager)
+        .setRoomFromTrigger(collision.entity);
 
       this.pearl.entities.destroy(collision.gameObject);
     } else if (collision.gameObject.hasTag(Tag.Enemy)) {
@@ -326,22 +237,7 @@ export default class Player extends Component<void> {
         this.die();
       }
     } else if (collision.gameObject.hasTag(Tag.Key)) {
-      // replace blocks in this room
-      const tileMap = this.gameObject.parent!.getComponent(TiledTileMap);
-      const blocks = tileMap.getTilesOfType('block');
-
-      for (let blockPos of blocks) {
-        const realPos = {
-          x: blockPos.x * tileMap.tileWidth + tileMap.tileWidth / 2,
-          y: blockPos.y * tileMap.tileHeight + tileMap.tileHeight / 2,
-        };
-        if (
-          realPos.x >= this.leftBoundaryX &&
-          realPos.x <= this.rightBoundaryX
-        ) {
-          tileMap.setTileAt(blockPos, 20, 'Walls');
-        }
-      }
+      this.entity.parent!.getComponent(RoomManager).destroyBlocksInRoom();
       this.pearl.entities.destroy(collision.gameObject);
     }
   }

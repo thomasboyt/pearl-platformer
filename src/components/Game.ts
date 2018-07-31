@@ -3,6 +3,8 @@ import TiledTileMap from './TiledTileMap';
 import TileMapCollider from './TileMapCollider';
 import { Tag, ZIndex } from '../types';
 import entityFactories from '../entityFactories';
+import RoomManager from './RoomManager';
+import CameraMover from './CameraMover';
 
 export default class Game extends Component<null> {
   init() {
@@ -20,6 +22,8 @@ export default class Game extends Component<null> {
             entityFactories,
           }),
           new TileMapCollider(),
+          new RoomManager(),
+          new CameraMover(),
         ],
       })
     );
